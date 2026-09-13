@@ -1,0 +1,1 @@
+// Rotas Fastify para locaisEstoque.
