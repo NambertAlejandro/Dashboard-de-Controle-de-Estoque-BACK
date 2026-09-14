@@ -13,10 +13,26 @@ const historicoAtividadesRepository = {
   },
   async registrar(cliente, ids, antes, tipo, descricao) {
     const depois = await historicoAtividadesRepository.capturar(cliente,ids)
+    const categoriaIds = [...new Set(antes.produtos.map(produto => produto.categoria_id).filter(Boolean))]
+    const unidadeIds = [...new Set(antes.produtos.map(produto => produto.unidade_medida_id).filter(Boolean))]
+    const fornecedorIds = [...new Set(antes.lotes.map(lote => lote.fornecedor_id).filter(Boolean))]
+    const localIds = [...new Set(antes.lotes.map(lote => lote.local_estoque_id).filter(Boolean))]
+    const categorias = categoriaIds.length
+      ? (await cliente.query('SELECT id, nome FROM categorias WHERE id = ANY($1::int[])',[categoriaIds])).rows
+      : []
+    const unidades = unidadeIds.length
+      ? (await cliente.query('SELECT id, simbolo FROM unidades_medida WHERE id = ANY($1::int[])',[unidadeIds])).rows
+      : []
+    const fornecedores = fornecedorIds.length
+      ? (await cliente.query('SELECT id, nome FROM fornecedores WHERE id = ANY($1::int[])',[fornecedorIds])).rows
+      : []
+    const locais = localIds.length
+      ? (await cliente.query('SELECT id, nome FROM locais_estoque WHERE id = ANY($1::int[])',[localIds])).rows
+      : []
     // As duas colunas JSON guardam o estado anterior; depois permite conferir mudanças.
     return await historicoAtividadesRepository.criar({
       tipo_acao:tipo, descricao,
-      produtos_antes:{versao:1,ids,produtos:antes.produtos,lotes:antes.lotes,depois},
+      produtos_antes:{versao:1,ids,produtos:antes.produtos,lotes:antes.lotes,depois,referencias:{categorias,unidades,fornecedores,locais}},
       movimentacoes_antes:antes.movimentacoes
     },cliente)
   },
@@ -46,21 +62,48 @@ const historicoAtividadesRepository = {
         erro.motivo = 'conflito'
         throw erro
       }
-      // Confere referências antes de restaurar, mesmo sem chaves estrangeiras no MVP.
+      // Recria categorias e unidades removidas antes de restaurar o produto.
       for (const produto of dados.produtos) {
-        const referencias = (await cliente.query('SELECT EXISTS(SELECT 1 FROM categorias WHERE id=$1) AND EXISTS(SELECT 1 FROM unidades_medida WHERE id=$2) AS ok',[produto.categoria_id,produto.unidade_medida_id])).rows[0]
-        if (!referencias.ok) {
-          const erro = new Error('A categoria ou unidade usada pelo produto foi removida. Não é possível restaurar.')
-          erro.motivo = 'conflito'
-          throw erro
+        const categoriaExiste = (await cliente.query('SELECT id FROM categorias WHERE id=$1',[produto.categoria_id])).rows[0]
+        if (!categoriaExiste) {
+          const salva = dados.referencias?.categorias?.find(item => item.id === produto.categoria_id)
+          const nome = salva?.nome || `Categoria restaurada ${produto.categoria_id}`
+          const criada = (await cliente.query(
+            'INSERT INTO categorias (id,nome) OVERRIDING SYSTEM VALUE VALUES($1,$2) ON CONFLICT (nome) DO NOTHING RETURNING id',
+            [produto.categoria_id,nome]
+          )).rows[0]
+          if (!criada) produto.categoria_id = (await cliente.query('SELECT id FROM categorias WHERE nome=$1',[nome])).rows[0].id
+        }
+
+        const unidadeExiste = (await cliente.query('SELECT id FROM unidades_medida WHERE id=$1',[produto.unidade_medida_id])).rows[0]
+        if (!unidadeExiste) {
+          const salva = dados.referencias?.unidades?.find(item => item.id === produto.unidade_medida_id)
+          const simbolo = salva?.simbolo || `rest-${produto.unidade_medida_id}`
+          const criada = (await cliente.query(
+            'INSERT INTO unidades_medida (id,simbolo) OVERRIDING SYSTEM VALUE VALUES($1,$2) ON CONFLICT (simbolo) DO NOTHING RETURNING id',
+            [produto.unidade_medida_id,simbolo]
+          )).rows[0]
+          if (!criada) produto.unidade_medida_id = (await cliente.query('SELECT id FROM unidades_medida WHERE simbolo=$1',[simbolo])).rows[0].id
         }
       }
       for (const lote of dados.lotes) {
-        const referencias = (await cliente.query('SELECT ($1::int IS NULL OR EXISTS(SELECT 1 FROM fornecedores WHERE id=$1)) AND ($2::int IS NULL OR EXISTS(SELECT 1 FROM locais_estoque WHERE id=$2)) AS ok',[lote.fornecedor_id,lote.local_estoque_id])).rows[0]
-        if (!referencias.ok) {
-          const erro = new Error('O fornecedor ou local usado pelo lote foi removido. Não é possível restaurar.')
-          erro.motivo = 'conflito'
-          throw erro
+        if (lote.fornecedor_id && !(await cliente.query('SELECT id FROM fornecedores WHERE id=$1',[lote.fornecedor_id])).rows[0]) {
+          const salva = dados.referencias?.fornecedores?.find(item => item.id === lote.fornecedor_id)
+          const nome = salva?.nome || `Fornecedor restaurado ${lote.fornecedor_id}`
+          const criada = (await cliente.query(
+            'INSERT INTO fornecedores (id,nome) OVERRIDING SYSTEM VALUE VALUES($1,$2) ON CONFLICT (nome) DO NOTHING RETURNING id',
+            [lote.fornecedor_id,nome]
+          )).rows[0]
+          if (!criada) lote.fornecedor_id = (await cliente.query('SELECT id FROM fornecedores WHERE nome=$1',[nome])).rows[0].id
+        }
+        if (lote.local_estoque_id && !(await cliente.query('SELECT id FROM locais_estoque WHERE id=$1',[lote.local_estoque_id])).rows[0]) {
+          const salvo = dados.referencias?.locais?.find(item => item.id === lote.local_estoque_id)
+          const nome = salvo?.nome || `Local restaurado ${lote.local_estoque_id}`
+          const criado = (await cliente.query(
+            'INSERT INTO locais_estoque (id,nome) OVERRIDING SYSTEM VALUE VALUES($1,$2) ON CONFLICT (nome) DO NOTHING RETURNING id',
+            [lote.local_estoque_id,nome]
+          )).rows[0]
+          if (!criado) lote.local_estoque_id = (await cliente.query('SELECT id FROM locais_estoque WHERE nome=$1',[nome])).rows[0].id
         }
       }
       // Primeiro retira os registros dependentes, depois restaura com os mesmos IDs.
