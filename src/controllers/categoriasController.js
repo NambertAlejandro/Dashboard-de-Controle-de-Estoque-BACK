@@ -1,79 +1,62 @@
 import categoriasRepository from "../repositories/categoriasRepository.js"
 
-function idValido(id) {
-  return /^\d+$/.test(String(id)) && Number.isSafeInteger(Number(id)) && Number(id) > 0
+function falhar(motivo, mensagem) {
+  const erro = new Error(mensagem)
+  erro.motivo = motivo
+  throw erro
 }
 
-function nomeValido(nome) {
-  return typeof nome === "string" && nome.trim().length > 0 && nome.trim().length <= 80
+function validarId(valor) {
+  const id = Number(valor)
+  if (!/^[0-9]+$/.test(String(valor)) || !Number.isInteger(id) || id <= 0 || id > 2147483647) {
+    falhar("invalido", "Informe um ID inteiro maior que zero.")
+  }
+  return id
 }
 
-function responderErro(erro, reply) {
-  if (erro.code === "23505") {
-    return reply.code(409).send({ erro: "Já existe uma categoria com esse nome." })
+function validarNome(dados) {
+  if (typeof dados?.nome !== "string" || !dados.nome.trim() || dados.nome.trim().length > 80) {
+    falhar("invalido", "Informe um nome de 1 a 80 caracteres.")
   }
-  if (erro.code === "23503") {
-    return reply.code(409).send({ erro: "Esta categoria está em uso por um produto." })
-  }
-  return reply.code(500).send({ erro: "Não foi possível acessar as categorias. Confira a conexão e as tabelas do banco." })
+  return dados.nome.trim()
 }
 
 const categoriasController = {
-  async listar(req, reply) {
-    try {
-      return await categoriasRepository.listar()
-    } catch (erro) {
-      return responderErro(erro, reply)
-    }
+  async listar() {
+    return await categoriasRepository.listar()
   },
 
-  async buscarPorId(req, reply) {
-    if (!idValido(req.params.id)) return reply.code(400).send({ erro: "Informe um ID inteiro maior que zero." })
-    try {
-      const categoria = await categoriasRepository.buscarPorId(Number(req.params.id))
-      if (!categoria) return reply.code(404).send({ erro: "Categoria não encontrada." })
-      return categoria
-    } catch (erro) {
-      return responderErro(erro, reply)
-    }
+  async buscarPorId(valor) {
+    const id = validarId(valor)
+    const categoria = await categoriasRepository.buscarPorId(id)
+    if (!categoria) falhar("nao_encontrado", "Categoria não encontrada.")
+    return categoria
   },
 
-  async criar(req, reply) {
-    if (!nomeValido(req.body?.nome)) return reply.code(400).send({ erro: "Informe um nome de 1 a 80 caracteres." })
-    try {
-      const categoria = await categoriasRepository.criar(req.body.nome.trim())
-      return reply.code(201).send(categoria)
-    } catch (erro) {
-      return responderErro(erro, reply)
-    }
+  async criar(dados) {
+    const nome = validarNome(dados)
+    return await categoriasRepository.criar(nome)
   },
 
-  async atualizar(req, reply) {
-    if (!idValido(req.params.id)) return reply.code(400).send({ erro: "Informe um ID inteiro maior que zero." })
-    if (!nomeValido(req.body?.nome)) return reply.code(400).send({ erro: "Informe um nome de 1 a 80 caracteres." })
-    try {
-      const categoria = await categoriasRepository.atualizar(Number(req.params.id), req.body.nome.trim())
-      if (!categoria) return reply.code(404).send({ erro: "Categoria não encontrada." })
-      return categoria
-    } catch (erro) {
-      return responderErro(erro, reply)
-    }
+  async atualizar(valor, dados) {
+    const id = validarId(valor)
+    const nome = validarNome(dados)
+    // Produtos guardam o ID, então renomear a categoria mantém a ligação.
+    const categoria = await categoriasRepository.atualizar(id, nome)
+    if (!categoria) falhar("nao_encontrado", "Categoria não encontrada.")
+    return categoria
   },
 
-  async excluir(req, reply) {
-    if (!idValido(req.params.id)) return reply.code(400).send({ erro: "Informe um ID inteiro maior que zero." })
-    try {
-      const id = Number(req.params.id)
-      const categoria = await categoriasRepository.excluir(id)
-      if (!categoria) {
-        const existente = await categoriasRepository.buscarPorId(id)
-        if (existente) return reply.code(409).send({ erro: "Esta categoria está em uso por um produto." })
-        return reply.code(404).send({ erro: "Categoria não encontrada." })
-      }
-      return reply.code(204).send()
-    } catch (erro) {
-      return responderErro(erro, reply)
+  async excluir(valor) {
+    const id = validarId(valor)
+    const categoria = await categoriasRepository.excluir(id)
+    if (!categoria) {
+      // A consulta só exclui categorias sem produtos associados.
+      const existente = await categoriasRepository.buscarPorId(id)
+      if (existente) falhar("conflito", "Esta categoria está em uso por um produto.")
+      falhar("nao_encontrado", "Categoria não encontrada.")
     }
+    return categoria
   },
 }
 

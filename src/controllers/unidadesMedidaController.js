@@ -1,0 +1,66 @@
+import unidadesMedidaRepository from "../repositories/unidadesMedidaRepository.js"
+
+function falhar(motivo, mensagem) {
+  const erro = new Error(mensagem)
+  erro.motivo = motivo
+  throw erro
+}
+
+function validarId(valor) {
+  const id = Number(valor)
+  if (!/^[0-9]+$/.test(String(valor)) || !Number.isInteger(id) || id <= 0 || id > 2147483647) {
+    falhar("invalido", "Informe um ID inteiro maior que zero.")
+  }
+  return id
+}
+
+function validarSimbolo(dados) {
+  if (typeof dados?.simbolo !== "string" || !dados.simbolo.trim()) {
+    falhar("invalido", "Informe o símbolo da unidade, como un, kg ou L.")
+  }
+  // Retiramos espaços nas pontas, mas preservamos maiúsculas, como em L.
+  return dados.simbolo.trim()
+}
+
+const unidadesMedidaController = {
+  async listar() {
+    return await unidadesMedidaRepository.listar()
+  },
+
+  async buscarPorId(valor) {
+    const id = validarId(valor)
+    const unidade = await unidadesMedidaRepository.buscarPorId(id)
+    if (!unidade) falhar("nao_encontrado", "Unidade de medida não encontrada.")
+    return unidade
+  },
+
+  async criar(dados) {
+    const simbolo = validarSimbolo(dados)
+    return await unidadesMedidaRepository.criar(simbolo)
+  },
+
+  async atualizar(valor, dados) {
+    const unidade = await unidadesMedidaController.buscarPorId(valor)
+    const simbolo = validarSimbolo(dados)
+    // Trocar kg por caixa mudaria o significado do estoque de todos os produtos.
+    // Para uma unidade já usada, cadastre outra em vez de renomeá-la.
+    if (simbolo !== unidade.simbolo && await unidadesMedidaRepository.estaEmUso(unidade.id)) {
+      falhar("conflito", "Esta unidade está em uso. Cadastre outra unidade em vez de alterar seu símbolo.")
+    }
+    const atualizada = await unidadesMedidaRepository.atualizar(unidade.id, simbolo)
+    if (!atualizada) falhar("nao_encontrado", "Unidade de medida não encontrada.")
+    return atualizada
+  },
+
+  async excluir(valor) {
+    const unidade = await unidadesMedidaController.buscarPorId(valor)
+    if (await unidadesMedidaRepository.estaEmUso(unidade.id)) {
+      falhar("conflito", "Esta unidade está em uso por um produto e não pode ser excluída.")
+    }
+    const excluida = await unidadesMedidaRepository.excluir(unidade.id)
+    if (!excluida) falhar("conflito", "A unidade mudou ou passou a ser usada por um produto.")
+    return excluida
+  },
+}
+
+export default unidadesMedidaController
