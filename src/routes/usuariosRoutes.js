@@ -43,4 +43,22 @@ export default async function usuariosRoutes(fastify) {
       return responderErro(erro, request, reply, 'Falha ao trocar senha')
     }
   })
+
+  fastify.post('/solicitar-codigo', async (request, reply) => {
+    try {
+      await usuariosController.solicitarCodigo(request.body)
+      return { mensagem: 'Se o e-mail estiver cadastrado, o código será enviado.' }
+    } catch (erro) {
+      return responderErro(erro, request, reply, 'Falha ao enviar código')
+    }
+  })
+
+  fastify.post('/redefinir-senha', async (request, reply) => {
+    try {
+      await usuariosController.redefinirSenha(request.body)
+      return { mensagem: 'Senha alterada. Você já pode entrar.' }
+    } catch (erro) {
+      return responderErro(erro, request, reply, 'Falha ao redefinir senha')
+    }
+  })
 }

@@ -3,7 +3,7 @@ import { pool } from '../database/connection.js'
 const usuariosRepository = {
   async buscarPorLogin(login) {
     const resultado = await pool.query(
-      'SELECT id, login, senha_hash FROM usuarios WHERE LOWER(login) = LOWER($1)',
+      'SELECT id, login, senha_hash, codigo_recuperacao_hash, codigo_recuperacao_expira FROM usuarios WHERE LOWER(login) = LOWER($1)',
       [login]
     )
     return resultado.rows[0]
@@ -31,6 +31,20 @@ const usuariosRepository = {
       [senhaHash, id]
     )
     return resultado.rows[0]
+  },
+
+  async salvarCodigo(id, codigoHash, expira) {
+    await pool.query(
+      'UPDATE usuarios SET codigo_recuperacao_hash = $1, codigo_recuperacao_expira = $2 WHERE id = $3',
+      [codigoHash, expira, id]
+    )
+  },
+
+  async redefinirSenha(id, senhaHash) {
+    await pool.query(
+      'UPDATE usuarios SET senha_hash = $1, codigo_recuperacao_hash = NULL, codigo_recuperacao_expira = NULL WHERE id = $2',
+      [senhaHash, id]
+    )
   }
 }
 

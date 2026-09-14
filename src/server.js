@@ -28,7 +28,7 @@ await fastify.register(usuariosRoutes)
 // Todas as rotas registradas abaixo exigem o token recebido no login.
 fastify.addHook('onRequest', async (request, reply) => {
   const caminho = request.url.split('?')[0]
-  if (request.method === 'OPTIONS' || caminho === '/login' || caminho === '/criar-conta' || caminho === '/health') return
+  if (request.method === 'OPTIONS' || ['/login', '/criar-conta', '/solicitar-codigo', '/redefinir-senha', '/health'].includes(caminho)) return
   try {
     await request.jwtVerify()
   } catch {
