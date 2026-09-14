@@ -2,7 +2,9 @@
 
 O projeto continua com React/JSX/CSS no frontend e Fastify + pg no backend.
 O caminho é: tela → routes → controller → repository → Neon.
-Não usamos TypeScript, ORM, login ou novas tabelas.
+Não usamos TypeScript, ORM ou uma arquitetura complicada.
+
+O sistema agora possui login simples. O acesso inicial é `adm` / `adm1`. A senha é armazenada como hash na tabela `usuarios`, nunca como texto puro.
 
 ## Rodar no computador
 
@@ -47,6 +49,7 @@ Ao atualizar a página, os dados cadastrados continuam no Neon.
 | /historico-atividades | GET |
 | /historico-atividades/:id/desfazer | POST |
 | /health | GET |
+| /login | POST com {"login":"adm","senha":"sua senha"} |
 
 Categorias, unidades, fornecedores, locais e lotes também têm GET, PUT e DELETE em /:id. Cadastros de apoio em uso não podem ser apagados. Lotes com movimentações não podem ser apagados isoladamente.
 Listagens também aceitam /listar.
@@ -80,6 +83,8 @@ Publique o backend em um serviço que execute Node, com `npm start`, DATABASE_UR
 No frontend da Vercel, configure VITE_API_URL com a URL HTTPS desse backend e faça um novo deploy.
 FRONTEND_URL no backend deve ser a URL exata do frontend, sem barra final. Pode usar uma lista separada por vírgulas.
 Nunca coloque DATABASE_URL na Vercel do frontend ou em variável que começa com VITE_.
+
+O backend usa `JWT_SECRET` para assinar as sessões. Para facilitar o primeiro deploy, se essa variável não existir ele usa a própria `DATABASE_URL`, que já é secreta. Depois, vocês podem adicionar no Render uma `JWT_SECRET` longa e aleatória; isso desconectará as sessões antigas uma única vez.
 
 ## Observações do banco existente
 

@@ -1,4 +1,6 @@
 import cors from '@fastify/cors'
+import jwt from '@fastify/jwt'
+import usuariosRoutes from './routes/usuariosRoutes.js'
 import fornecedoresRoutes from './routes/fornecedoresRoutes.js'
 import locaisEstoqueRoutes from './routes/locaisEstoqueRoutes.js'
 import lotesRoutes from './routes/lotesRoutes.js'
@@ -15,7 +17,24 @@ const fastify = Fastify({
 })
 
 await fastify.register(cors, { origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(url => url.trim()) : ['http://localhost:5173', 'http://127.0.0.1:5173'], methods: ['GET','POST','PUT','DELETE','OPTIONS'] })
+const jwtSecret = process.env.JWT_SECRET || process.env.DATABASE_URL
+if (!jwtSecret) {
+  throw new Error('Configure JWT_SECRET ou DATABASE_URL.')
+}
+await fastify.register(jwt, { secret: jwtSecret })
 fastify.get('/health', async () => ({ status: 'ok' }))
+await fastify.register(usuariosRoutes)
+
+// Todas as rotas registradas abaixo exigem o token recebido no login.
+fastify.addHook('onRequest', async (request, reply) => {
+  const caminho = request.url.split('?')[0]
+  if (request.method === 'OPTIONS' || caminho === '/login' || caminho === '/health') return
+  try {
+    await request.jwtVerify()
+  } catch {
+    return reply.code(401).send({ erro: 'Faça login para continuar.' })
+  }
+})
 fastify.register(fornecedoresRoutes, { prefix: '/fornecedores' })
 fastify.register(locaisEstoqueRoutes, { prefix: '/locais-estoque' })
 fastify.register(lotesRoutes, { prefix: '/lotes' })
