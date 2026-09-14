@@ -22,37 +22,37 @@ function validarNome(dados) {
 }
 
 const categoriasController = {
-  async listar() {
-    return await categoriasRepository.listar()
+  async listar(usuarioId) {
+    return await categoriasRepository.listar(usuarioId)
   },
 
-  async buscarPorId(valor) {
+  async buscarPorId(valor, usuarioId) {
     const id = validarId(valor)
-    const categoria = await categoriasRepository.buscarPorId(id)
+    const categoria = await categoriasRepository.buscarPorId(id,usuarioId)
     if (!categoria) falhar("nao_encontrado", "Categoria não encontrada.")
     return categoria
   },
 
-  async criar(dados) {
+  async criar(dados, usuarioId) {
     const nome = validarNome(dados)
-    return await categoriasRepository.criar(nome)
+    return await categoriasRepository.criar(nome,usuarioId)
   },
 
-  async atualizar(valor, dados) {
+  async atualizar(valor, dados, usuarioId) {
     const id = validarId(valor)
     const nome = validarNome(dados)
     // Produtos guardam o ID, então renomear a categoria mantém a ligação.
-    const categoria = await categoriasRepository.atualizar(id, nome)
+    const categoria = await categoriasRepository.atualizar(id,nome,usuarioId)
     if (!categoria) falhar("nao_encontrado", "Categoria não encontrada.")
     return categoria
   },
 
-  async excluir(valor) {
+  async excluir(valor, usuarioId) {
     const id = validarId(valor)
-    const categoria = await categoriasRepository.excluir(id)
+    const categoria = await categoriasRepository.excluir(id,usuarioId)
     if (!categoria) {
       // A consulta só exclui categorias sem produtos associados.
-      const existente = await categoriasRepository.buscarPorId(id)
+      const existente = await categoriasRepository.buscarPorId(id,usuarioId)
       if (existente) falhar("conflito", "Esta categoria está em uso por um produto.")
       falhar("nao_encontrado", "Categoria não encontrada.")
     }

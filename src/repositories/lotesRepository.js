@@ -3,20 +3,20 @@ import { pool } from '../database/connection.js'
 import movimentacoesEstoqueRepository from './movimentacoesEstoqueRepository.js'
 
 const lotesRepository = {
-  async listar() {
-    return (await pool.query('SELECT * FROM lotes ORDER BY id DESC')).rows
+  async listar(usuarioId) {
+    return (await pool.query('SELECT l.* FROM lotes l JOIN produtos p ON p.id=l.produto_id WHERE p.usuario_id=$1 ORDER BY l.id DESC',[usuarioId])).rows
   },
-  async buscarPorId(id) {
-    return (await pool.query('SELECT * FROM lotes WHERE id = $1', [id])).rows[0]
+  async buscarPorId(id, usuarioId) {
+    return (await pool.query('SELECT l.* FROM lotes l JOIN produtos p ON p.id=l.produto_id WHERE l.id=$1 AND p.usuario_id=$2',[id,usuarioId])).rows[0]
   },
-  async buscarProduto(id) {
-    return (await pool.query('SELECT * FROM produtos WHERE id = $1', [id])).rows[0]
+  async buscarProduto(id, usuarioId) {
+    return (await pool.query('SELECT * FROM produtos WHERE id=$1 AND usuario_id=$2',[id,usuarioId])).rows[0]
   },
-  async buscarFornecedor(id) {
-    return (await pool.query('SELECT id FROM fornecedores WHERE id = $1', [id])).rows[0]
+  async buscarFornecedor(id, usuarioId) {
+    return (await pool.query('SELECT id FROM fornecedores WHERE id=$1 AND usuario_id=$2',[id,usuarioId])).rows[0]
   },
-  async buscarLocal(id) {
-    return (await pool.query('SELECT id FROM locais_estoque WHERE id = $1', [id])).rows[0]
+  async buscarLocal(id, usuarioId) {
+    return (await pool.query('SELECT id FROM locais_estoque WHERE id=$1 AND usuario_id=$2',[id,usuarioId])).rows[0]
   },
   async criar(dados, conexao = null) {
     const cliente = conexao || await pool.connect()
@@ -36,7 +36,7 @@ const lotesRepository = {
         await movimentacoesEstoqueRepository.criar({produto_id: dados.produto_id, lote_id: lote.id, quantidade, tipo: 'Entrada', data_movimentacao: dados.data_movimentacao ?? null}, cliente)
       }
       if (!conexao) {
-        await historicoAtividadesRepository.registrar(cliente,[dados.produto_id],antes,'create','Cadastro de lote do produto ' + dados.produto_id)
+        await historicoAtividadesRepository.registrar(cliente,[dados.produto_id],antes,'create','Cadastro de lote do produto ' + dados.produto_id,dados.usuario_id)
         await cliente.query('COMMIT')
       }
       return lote
@@ -61,7 +61,7 @@ const lotesRepository = {
       await historicoAtividadesRepository.bloquear(cliente)
       const antes = await historicoAtividadesRepository.capturar(cliente,[produtoId])
       const lote = await lotesRepository.atualizar(id,dados,cliente)
-      await historicoAtividadesRepository.registrar(cliente,[produtoId],antes,'edit','Edição do lote ' + id)
+      await historicoAtividadesRepository.registrar(cliente,[produtoId],antes,'edit','Edição do lote ' + id,dados.usuario_id)
       await cliente.query('COMMIT')
       return lote
     } catch (erro) {
@@ -69,12 +69,12 @@ const lotesRepository = {
       throw erro
     } finally { cliente.release() }
   },
-  async excluir(id) {
+  async excluir(id, usuarioId) {
     const cliente = await pool.connect()
     try {
       await cliente.query('BEGIN')
       await historicoAtividadesRepository.bloquear(cliente)
-      const lote = (await cliente.query('SELECT * FROM lotes WHERE id=$1',[id])).rows[0]
+      const lote = (await cliente.query('SELECT l.* FROM lotes l JOIN produtos p ON p.id=l.produto_id WHERE l.id=$1 AND p.usuario_id=$2',[id,usuarioId])).rows[0]
       if (!lote) {
         await cliente.query('ROLLBACK')
         return null
@@ -85,7 +85,7 @@ const lotesRepository = {
         await cliente.query('ROLLBACK')
         return null
       }
-      await historicoAtividadesRepository.registrar(cliente,[lote.produto_id],antes,'delete','Exclusão do lote ' + id)
+      await historicoAtividadesRepository.registrar(cliente,[lote.produto_id],antes,'delete','Exclusão do lote ' + id,usuarioId)
       await cliente.query('COMMIT')
       return excluido
     } catch (erro) {

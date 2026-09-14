@@ -16,38 +16,38 @@ export default async function produtosRoutes(fastify) {
   })
 
   fastify.post('/excluir-selecionados', async (request, reply) => {
-    await produtosController.excluirVarios(request.body)
+    await produtosController.excluirVarios(request.body,request.user.id)
     return reply.code(204).send()
   })
-  fastify.get("/", async () => {
-    return await produtosController.listar()
+  fastify.get("/", async (request) => {
+    return await produtosController.listar(request.user.id)
   })
 
   // Mantém o endereço que vocês já testaram no Thunder.
-  fastify.get("/listar", async () => {
-    return await produtosController.listar()
+  fastify.get("/listar", async (request) => {
+    return await produtosController.listar(request.user.id)
   })
 
   fastify.get("/sku/:sku", async (request) => {
-    return await produtosController.buscarPorSku(request.params.sku)
+    return await produtosController.buscarPorSku(request.params.sku,request.user.id)
   })
 
   fastify.get("/:id", async (request) => {
-    return await produtosController.buscarPorId(request.params.id)
+    return await produtosController.buscarPorId(request.params.id,request.user.id)
   })
 
   fastify.post("/", async (request, reply) => {
-    const produto = await produtosController.criar(request.body)
+    const produto = await produtosController.criar(request.body,request.user.id)
     return reply.code(201).send(produto)
   })
 
   fastify.put("/:id", async (request, reply) => {
-    const produto = await produtosController.atualizar(request.params.id, request.body)
+    const produto = await produtosController.atualizar(request.params.id,request.body,request.user.id)
     return reply.code(200).send(produto)
   })
 
   fastify.delete("/:id", async (request, reply) => {
-    await produtosController.excluir(request.params.id)
+    await produtosController.excluir(request.params.id,request.user.id)
     return reply.code(204).send()
   })
 }

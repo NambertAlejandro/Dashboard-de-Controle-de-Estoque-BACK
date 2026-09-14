@@ -2,12 +2,12 @@ import { pool } from '../database/connection.js'
 import historicoAtividadesRepository from './historicoAtividadesRepository.js'
 
 const movimentacoesEstoqueRepository = {
-  async listar() {
-    const resultado = await pool.query('SELECT * FROM movimentacoes_estoque ORDER BY id DESC')
+  async listar(usuarioId) {
+    const resultado = await pool.query('SELECT m.* FROM movimentacoes_estoque m JOIN produtos p ON p.id=m.produto_id WHERE p.usuario_id=$1 ORDER BY m.id DESC',[usuarioId])
     return resultado.rows
   },
-  async buscarPorId(id) {
-    const resultado = await pool.query('SELECT * FROM movimentacoes_estoque WHERE id = $1', [id])
+  async buscarPorId(id, usuarioId) {
+    const resultado = await pool.query('SELECT m.* FROM movimentacoes_estoque m JOIN produtos p ON p.id=m.produto_id WHERE m.id=$1 AND p.usuario_id=$2',[id,usuarioId])
     return resultado.rows[0]
   },
   async criar(dados, conexao = null) {
@@ -20,7 +20,7 @@ const movimentacoesEstoqueRepository = {
       }
       const antes = !conexao ? await historicoAtividadesRepository.capturar(cliente,[dados.produto_id]) : null
       // Duas saídas do mesmo produto precisam conferir o saldo uma por vez.
-      const produto = (await cliente.query('SELECT * FROM produtos WHERE id = $1 FOR UPDATE', [dados.produto_id])).rows[0]
+      const produto = (await cliente.query('SELECT * FROM produtos WHERE id=$1 AND ($2::int IS NULL OR usuario_id=$2) FOR UPDATE',[dados.produto_id,dados.usuario_id || null])).rows[0]
       if (!produto) {
         const erro = new Error('Produto não encontrado.')
         erro.motivo = 'nao_encontrado'
@@ -64,7 +64,7 @@ const movimentacoesEstoqueRepository = {
         'INSERT INTO movimentacoes_estoque (produto_id, lote_id, quantidade, tipo, data_movimentacao) VALUES ($1, $2, $3, $4, COALESCE($5::date, CURRENT_DATE)) RETURNING *',
         [dados.produto_id, dados.lote_id, dados.quantidade, dados.tipo, dados.data_movimentacao]
       )
-      if (!conexao) await historicoAtividadesRepository.registrar(cliente,[dados.produto_id],antes,'movement',dados.tipo + ' de ' + dados.quantidade + ' de ' + produto.name)
+      if (!conexao) await historicoAtividadesRepository.registrar(cliente,[dados.produto_id],antes,'movement',dados.tipo + ' de ' + dados.quantidade + ' de ' + produto.name,produto.usuario_id)
       if (!conexao) await cliente.query('COMMIT')
       return resultado.rows[0]
     } catch (erro) {

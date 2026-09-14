@@ -15,25 +15,25 @@ export default async function categoriasRoutes(fastify) {
     return reply.code(500).send({ erro: "Não foi possível acessar as categorias." })
   })
 
-  fastify.get("/", async () => {
-    return await categoriasController.listar()
+  fastify.get("/", async (request) => {
+    return await categoriasController.listar(request.user.id)
   })
-  fastify.get("/listar", async () => {
-    return await categoriasController.listar()
+  fastify.get("/listar", async (request) => {
+    return await categoriasController.listar(request.user.id)
   })
   fastify.get("/:id", async (request) => {
-    return await categoriasController.buscarPorId(request.params.id)
+    return await categoriasController.buscarPorId(request.params.id,request.user.id)
   })
   fastify.post("/", async (request, reply) => {
-    const categoria = await categoriasController.criar(request.body)
+    const categoria = await categoriasController.criar(request.body,request.user.id)
     return reply.code(201).send(categoria)
   })
   fastify.put("/:id", async (request, reply) => {
-    const categoria = await categoriasController.atualizar(request.params.id, request.body)
+    const categoria = await categoriasController.atualizar(request.params.id,request.body,request.user.id)
     return reply.code(200).send(categoria)
   })
   fastify.delete("/:id", async (request, reply) => {
-    await categoriasController.excluir(request.params.id)
+    await categoriasController.excluir(request.params.id,request.user.id)
     return reply.code(204).send()
   })
 }

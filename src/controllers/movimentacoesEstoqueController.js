@@ -16,11 +16,11 @@ function invalidar(mensagem) {
   throw erro
 }
 const movimentacoesEstoqueController = {
-  async listar() {
-    return await movimentacoesEstoqueRepository.listar()
+  async listar(usuarioId) {
+    return await movimentacoesEstoqueRepository.listar(usuarioId)
   },
-  async buscarPorId(valor) {
-    const movimentacao = await movimentacoesEstoqueRepository.buscarPorId(validarId(valor))
+  async buscarPorId(valor, usuarioId) {
+    const movimentacao = await movimentacoesEstoqueRepository.buscarPorId(validarId(valor),usuarioId)
     if (!movimentacao) {
       const erro = new Error('Movimentação não encontrada.')
       erro.motivo = 'nao_encontrado'
@@ -28,7 +28,7 @@ const movimentacoesEstoqueController = {
     }
     return movimentacao
   },
-  async criar(dados) {
+  async criar(dados, usuarioId) {
     if (!dados || typeof dados !== 'object' || Array.isArray(dados)) invalidar('Envie os dados da movimentação.')
     const produto_id = validarId(dados.produto_id)
     const lote_id = dados.lote_id == null ? null : validarId(dados.lote_id)
@@ -44,7 +44,7 @@ const movimentacoesEstoqueController = {
         invalidar('Informe uma data válida no formato AAAA-MM-DD.')
       }
     }
-    return await movimentacoesEstoqueRepository.criar({ produto_id, lote_id, quantidade, tipo: dados.tipo, data_movimentacao: data })
+    return await movimentacoesEstoqueRepository.criar({ produto_id, lote_id, quantidade, tipo: dados.tipo, data_movimentacao: data, usuario_id:usuarioId })
   }
 }
 export default movimentacoesEstoqueController

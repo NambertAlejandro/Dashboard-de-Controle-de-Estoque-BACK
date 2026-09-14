@@ -10,11 +10,11 @@ export default async function movimentacoesEstoqueRoutes(fastify) {
     request.log.error({ codigo: erro.code }, 'Falha ao acessar movimentacoesEstoque')
     return reply.code(500).send({ erro: 'Não foi possível concluir a operação.' })
   })
-  fastify.get('/', async () => await controller.listar())
-  fastify.get('/listar', async () => await controller.listar())
-  fastify.get('/:id', async (request) => await controller.buscarPorId(request.params.id))
+  fastify.get('/', async request => await controller.listar(request.user.id))
+  fastify.get('/listar', async request => await controller.listar(request.user.id))
+  fastify.get('/:id', async request => await controller.buscarPorId(request.params.id,request.user.id))
   fastify.post('/', async (request, reply) => {
-    const movimentacao = await controller.criar(request.body)
+    const movimentacao = await controller.criar(request.body,request.user.id)
     return reply.code(201).send(movimentacao)
   })
 }

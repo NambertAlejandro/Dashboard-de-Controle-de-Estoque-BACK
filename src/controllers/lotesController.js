@@ -16,13 +16,13 @@ function numero(valor, casas, limite) {
   return n
 }
 const lotesController = {
-  async listar() { return await lotesRepository.listar() },
-  async buscarPorId(valor) {
-    const lote = await lotesRepository.buscarPorId(id(valor))
+  async listar(usuarioId) { return await lotesRepository.listar(usuarioId) },
+  async buscarPorId(valor, usuarioId) {
+    const lote = await lotesRepository.buscarPorId(id(valor),usuarioId)
     if (!lote) falhar('nao_encontrado','Lote não encontrado.')
     return lote
   },
-  async validar(dados) {
+  async validar(dados, usuarioId) {
     if (!dados || typeof dados !== 'object' || Array.isArray(dados)) falhar('invalido','Envie os dados do lote.')
     const data = dados.expirationDate || null
     for (const data of [dados.expirationDate || null, dados.data_movimentacao ?? null]) {
@@ -42,27 +42,29 @@ const lotesController = {
       local_estoque_id: dados.local_estoque_id == null ? null : id(dados.local_estoque_id)
     }
     if (lote.lostQuantity > lote.quantityReceived) falhar('invalido','As perdas não podem superar o recebimento.')
-    if (lote.fornecedor_id && !await lotesRepository.buscarFornecedor(lote.fornecedor_id)) falhar('invalido','Fornecedor não encontrado.')
-    if (lote.local_estoque_id && !await lotesRepository.buscarLocal(lote.local_estoque_id)) falhar('invalido','Local de estoque não encontrado.')
+    if (lote.fornecedor_id && !await lotesRepository.buscarFornecedor(lote.fornecedor_id,usuarioId)) falhar('invalido','Fornecedor não encontrado.')
+    if (lote.local_estoque_id && !await lotesRepository.buscarLocal(lote.local_estoque_id,usuarioId)) falhar('invalido','Local de estoque não encontrado.')
     return lote
   },
-  async criar(dados) {
-    const lote = await lotesController.validar(dados)
+  async criar(dados, usuarioId) {
+    const lote = await lotesController.validar(dados,usuarioId)
+    lote.usuario_id = usuarioId
     lote.produto_id = id(dados.produto_id)
-    const produto = await lotesRepository.buscarProduto(lote.produto_id)
+    const produto = await lotesRepository.buscarProduto(lote.produto_id,usuarioId)
     if (!produto) falhar('nao_encontrado','Produto não encontrado.')
     if (produto.itemType === 'prepared') falhar('invalido','Produto preparado não possui lote de estoque.')
     return await lotesRepository.criar(lote)
   },
-  async atualizar(valor,dados) {
-    const atual = await lotesController.buscarPorId(valor)
-    const lote = await lotesController.validar(dados)
+  async atualizar(valor,dados,usuarioId) {
+    const atual = await lotesController.buscarPorId(valor,usuarioId)
+    const lote = await lotesController.validar(dados,usuarioId)
+    lote.usuario_id = usuarioId
     if (dados.produto_id != null && id(dados.produto_id) !== atual.produto_id || lote.quantityReceived !== Number(atual.quantityReceived) || lote.lostQuantity !== Number(atual.lostQuantity)) falhar('conflito','Produto, recebimento e perdas do lote são preservados.')
     return await lotesRepository.editarComHistorico(atual.id,lote,atual.produto_id)
   },
-  async excluir(valor) {
-    const atual = await lotesController.buscarPorId(valor)
-    const excluido = await lotesRepository.excluir(atual.id)
+  async excluir(valor,usuarioId) {
+    const atual = await lotesController.buscarPorId(valor,usuarioId)
+    const excluido = await lotesRepository.excluir(atual.id,usuarioId)
     if (!excluido) falhar('conflito','Este lote possui movimentações e não pode ser excluído.')
     return excluido
   }

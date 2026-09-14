@@ -15,25 +15,25 @@ export default async function fornecedoresRoutes(fastify) {
     return reply.code(500).send({ erro: "Não foi possível acessar as fornecedores." })
   })
 
-  fastify.get("/", async () => {
-    return await fornecedoresController.listar()
+  fastify.get("/", async (request) => {
+    return await fornecedoresController.listar(request.user.id)
   })
-  fastify.get("/listar", async () => {
-    return await fornecedoresController.listar()
+  fastify.get("/listar", async (request) => {
+    return await fornecedoresController.listar(request.user.id)
   })
   fastify.get("/:id", async (request) => {
-    return await fornecedoresController.buscarPorId(request.params.id)
+    return await fornecedoresController.buscarPorId(request.params.id,request.user.id)
   })
   fastify.post("/", async (request, reply) => {
-    const categoria = await fornecedoresController.criar(request.body)
+    const categoria = await fornecedoresController.criar(request.body,request.user.id)
     return reply.code(201).send(categoria)
   })
   fastify.put("/:id", async (request, reply) => {
-    const categoria = await fornecedoresController.atualizar(request.params.id, request.body)
+    const categoria = await fornecedoresController.atualizar(request.params.id,request.body,request.user.id)
     return reply.code(200).send(categoria)
   })
   fastify.delete("/:id", async (request, reply) => {
-    await fornecedoresController.excluir(request.params.id)
+    await fornecedoresController.excluir(request.params.id,request.user.id)
     return reply.code(204).send()
   })
 }

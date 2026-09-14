@@ -15,25 +15,25 @@ export default async function locaisEstoqueRoutes(fastify) {
     return reply.code(500).send({ erro: "Não foi possível acessar as locaisEstoque." })
   })
 
-  fastify.get("/", async () => {
-    return await locaisEstoqueController.listar()
+  fastify.get("/", async (request) => {
+    return await locaisEstoqueController.listar(request.user.id)
   })
-  fastify.get("/listar", async () => {
-    return await locaisEstoqueController.listar()
+  fastify.get("/listar", async (request) => {
+    return await locaisEstoqueController.listar(request.user.id)
   })
   fastify.get("/:id", async (request) => {
-    return await locaisEstoqueController.buscarPorId(request.params.id)
+    return await locaisEstoqueController.buscarPorId(request.params.id,request.user.id)
   })
   fastify.post("/", async (request, reply) => {
-    const categoria = await locaisEstoqueController.criar(request.body)
+    const categoria = await locaisEstoqueController.criar(request.body,request.user.id)
     return reply.code(201).send(categoria)
   })
   fastify.put("/:id", async (request, reply) => {
-    const categoria = await locaisEstoqueController.atualizar(request.params.id, request.body)
+    const categoria = await locaisEstoqueController.atualizar(request.params.id,request.body,request.user.id)
     return reply.code(200).send(categoria)
   })
   fastify.delete("/:id", async (request, reply) => {
-    await locaisEstoqueController.excluir(request.params.id)
+    await locaisEstoqueController.excluir(request.params.id,request.user.id)
     return reply.code(204).send()
   })
 }

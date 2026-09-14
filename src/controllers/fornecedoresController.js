@@ -22,37 +22,37 @@ function validarNome(dados) {
 }
 
 const fornecedoresController = {
-  async listar() {
-    return await fornecedoresRepository.listar()
+  async listar(usuarioId) {
+    return await fornecedoresRepository.listar(usuarioId)
   },
 
-  async buscarPorId(valor) {
+  async buscarPorId(valor, usuarioId) {
     const id = validarId(valor)
-    const categoria = await fornecedoresRepository.buscarPorId(id)
+    const categoria = await fornecedoresRepository.buscarPorId(id,usuarioId)
     if (!categoria) falhar("nao_encontrado", "Registro não encontrado.")
     return categoria
   },
 
-  async criar(dados) {
+  async criar(dados, usuarioId) {
     const nome = validarNome(dados)
-    return await fornecedoresRepository.criar(nome)
+    return await fornecedoresRepository.criar(nome,usuarioId)
   },
 
-  async atualizar(valor, dados) {
+  async atualizar(valor, dados, usuarioId) {
     const id = validarId(valor)
     const nome = validarNome(dados)
     // O lote guarda o ID, então renomear mantém a ligação.
-    const categoria = await fornecedoresRepository.atualizar(id, nome)
+    const categoria = await fornecedoresRepository.atualizar(id,nome,usuarioId)
     if (!categoria) falhar("nao_encontrado", "Registro não encontrado.")
     return categoria
   },
 
-  async excluir(valor) {
+  async excluir(valor, usuarioId) {
     const id = validarId(valor)
-    const categoria = await fornecedoresRepository.excluir(id)
+    const categoria = await fornecedoresRepository.excluir(id,usuarioId)
     if (!categoria) {
       // A consulta só exclui fornecedores sem produtos associados.
-      const existente = await fornecedoresRepository.buscarPorId(id)
+      const existente = await fornecedoresRepository.buscarPorId(id,usuarioId)
       if (existente) falhar("conflito", "Este registro está em uso por um lote.")
       falhar("nao_encontrado", "Registro não encontrado.")
     }

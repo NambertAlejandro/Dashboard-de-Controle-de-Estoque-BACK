@@ -11,9 +11,9 @@ export default async function historicoAtividadesRoutes(fastify) {
     request.log.error({ codigo: erro.code }, 'Falha ao acessar historicoAtividades')
     return reply.code(500).send({ erro: 'Não foi possível concluir a operação.' })
   })
-  fastify.post('/:id/desfazer', async request => await controller.desfazer(request.params.id))
-  fastify.get('/', async () => await controller.listar())
-  fastify.get('/listar', async () => await controller.listar())
-  fastify.get('/:id', async (request) => await controller.buscarPorId(request.params.id))
+  fastify.post('/:id/desfazer', async request => await controller.desfazer(request.params.id,request.user.id))
+  fastify.get('/', async request => await controller.listar(request.user.id))
+  fastify.get('/listar', async request => await controller.listar(request.user.id))
+  fastify.get('/:id', async request => await controller.buscarPorId(request.params.id,request.user.id))
   // O histórico é gravado pelo backend junto da movimentação.
 }

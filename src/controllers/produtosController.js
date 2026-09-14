@@ -29,7 +29,7 @@ function validarNumero(valor, casas, limite, campo) {
   return numero
 }
 
-async function validarProduto(dados) {
+async function validarProduto(dados, usuarioId) {
   if (!dados || typeof dados !== "object" || Array.isArray(dados)) {
     falhar("invalido", "Envie os dados do produto em JSON.")
   }
@@ -54,50 +54,51 @@ async function validarProduto(dados) {
     categoria_id: validarId(dados.categoria_id),
     unidade_medida_id: validarId(dados.unidade_medida_id),
     notes: dados.notes?.trim() || null,
+    usuario_id: usuarioId,
   }
 
   // No MVP ainda não temos todas as chaves estrangeiras no banco.
   // Por isso conferimos os IDs antes de cadastrar ou editar.
-  if (!await produtosRepository.buscarCategoria(produto.categoria_id)) {
+  if (!await produtosRepository.buscarCategoria(produto.categoria_id,usuarioId)) {
     falhar("invalido", "Categoria não encontrada. Cadastre a categoria primeiro.")
   }
-  if (!await produtosRepository.buscarUnidade(produto.unidade_medida_id)) {
+  if (!await produtosRepository.buscarUnidade(produto.unidade_medida_id,usuarioId)) {
     falhar("invalido", "Unidade de medida não encontrada. Cadastre a unidade primeiro.")
   }
   return produto
 }
 
 const produtosController = {
-  async listar() {
-    return await produtosRepository.listar()
+  async listar(usuarioId) {
+    return await produtosRepository.listar(usuarioId)
   },
 
-  async buscarPorId(valor) {
+  async buscarPorId(valor, usuarioId) {
     const id = validarId(valor)
-    const produto = await produtosRepository.buscarPorId(id)
+    const produto = await produtosRepository.buscarPorId(id,usuarioId)
     if (!produto) falhar("nao_encontrado", "Produto não encontrado.")
     return produto
   },
 
-  async buscarPorSku(sku) {
+  async buscarPorSku(sku, usuarioId) {
     if (typeof sku !== "string" || !sku.trim() || sku.trim().length > 50) {
       falhar("invalido", "Informe um SKU válido.")
     }
-    const produto = await produtosRepository.buscarPorSku(sku.trim())
+    const produto = await produtosRepository.buscarPorSku(sku.trim(),usuarioId)
     if (!produto) falhar("nao_encontrado", "Produto não encontrado.")
     return produto
   },
 
-  async criar(dados) {
-    const produto = await validarProduto(dados)
-    const lote = dados.lote ? await lotesController.validar(dados.lote) : null
+  async criar(dados, usuarioId) {
+    const produto = await validarProduto(dados,usuarioId)
+    const lote = dados.lote ? await lotesController.validar(dados.lote,usuarioId) : null
     if (lote && produto.itemType === 'prepared') falhar('invalido','Produto preparado não possui lote.')
     return await produtosRepository.salvarComLote(produto,lote)
   },
 
-  async atualizar(valor, dados) {
-    const atual = await produtosController.buscarPorId(valor)
-    const produto = await validarProduto(dados)
+  async atualizar(valor, dados, usuarioId) {
+    const atual = await produtosController.buscarPorId(valor,usuarioId)
+    const produto = await validarProduto(dados,usuarioId)
     // O formulário já preserva o tipo após o cadastro. Mantemos essa regra na API.
     if (produto.itemType !== atual.itemType) {
       falhar("invalido", "O tipo do item não pode ser alterado após o cadastro.")
@@ -106,10 +107,10 @@ const produtosController = {
         await produtosRepository.possuiRegistros(atual.id)) {
       falhar("conflito", "Não altere a unidade de um produto que já possui lotes ou movimentações.")
     }
-    let lote = dados.lote ? await lotesController.validar(dados.lote) : null
+    let lote = dados.lote ? await lotesController.validar(dados.lote,usuarioId) : null
     if (lote && produto.itemType === 'prepared') falhar('invalido','Produto preparado não possui lote.')
     if (lote && dados.lote.id) {
-      const existente = await lotesController.buscarPorId(dados.lote.id)
+      const existente = await lotesController.buscarPorId(dados.lote.id,usuarioId)
       if (existente.produto_id !== atual.id || Number(existente.quantityReceived) !== lote.quantityReceived || Number(existente.lostQuantity) !== lote.lostQuantity) falhar('conflito','Confira o lote; recebimento e perdas são preservados.')
       lote.id = existente.id
     }
@@ -118,13 +119,13 @@ const produtosController = {
     return atualizado
   },
 
-  async excluirVarios(dados) {
+  async excluirVarios(dados, usuarioId) {
     if (!Array.isArray(dados?.ids) || !dados.ids.length) falhar('invalido','Selecione pelo menos um produto.')
     const ids = [...new Set(dados.ids.map(validarId))]
-    return await produtosRepository.excluirVarios(ids)
+    return await produtosRepository.excluirVarios(ids,usuarioId)
   },
-  async excluir(valor) {
-    return await produtosRepository.excluirVarios([validarId(valor)])
+  async excluir(valor, usuarioId) {
+    return await produtosRepository.excluirVarios([validarId(valor)],usuarioId)
   },
 }
 

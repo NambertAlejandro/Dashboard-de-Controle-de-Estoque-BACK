@@ -11,14 +11,14 @@ function validarId(valor) {
 }
 
 const historicoAtividadesController = {
-  async desfazer(valor) {
-    return await historicoAtividadesRepository.desfazer(validarId(valor))
+  async desfazer(valor, usuarioId) {
+    return await historicoAtividadesRepository.desfazer(validarId(valor),usuarioId)
   },
-  async listar() {
-    return await historicoAtividadesRepository.listar()
+  async listar(usuarioId) {
+    return await historicoAtividadesRepository.listar(usuarioId)
   },
-  async buscarPorId(valor) {
-    const atividade = await historicoAtividadesRepository.buscarPorId(validarId(valor))
+  async buscarPorId(valor, usuarioId) {
+    const atividade = await historicoAtividadesRepository.buscarPorId(validarId(valor),usuarioId)
     if (!atividade) {
       const erro = new Error('Atividade não encontrada.')
       erro.motivo = 'nao_encontrado'

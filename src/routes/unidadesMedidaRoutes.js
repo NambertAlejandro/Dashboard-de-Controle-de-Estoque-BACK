@@ -15,25 +15,25 @@ export default async function unidadesMedidaRoutes(fastify) {
     return reply.code(500).send({ erro: "Não foi possível acessar as unidades de medida." })
   })
 
-  fastify.get("/", async () => {
-    return await unidadesMedidaController.listar()
+  fastify.get("/", async (request) => {
+    return await unidadesMedidaController.listar(request.user.id)
   })
-  fastify.get("/listar", async () => {
-    return await unidadesMedidaController.listar()
+  fastify.get("/listar", async (request) => {
+    return await unidadesMedidaController.listar(request.user.id)
   })
   fastify.get("/:id", async (request) => {
-    return await unidadesMedidaController.buscarPorId(request.params.id)
+    return await unidadesMedidaController.buscarPorId(request.params.id,request.user.id)
   })
   fastify.post("/", async (request, reply) => {
-    const unidade = await unidadesMedidaController.criar(request.body)
+    const unidade = await unidadesMedidaController.criar(request.body,request.user.id)
     return reply.code(201).send(unidade)
   })
   fastify.put("/:id", async (request, reply) => {
-    const unidade = await unidadesMedidaController.atualizar(request.params.id, request.body)
+    const unidade = await unidadesMedidaController.atualizar(request.params.id,request.body,request.user.id)
     return reply.code(200).send(unidade)
   })
   fastify.delete("/:id", async (request, reply) => {
-    await unidadesMedidaController.excluir(request.params.id)
+    await unidadesMedidaController.excluir(request.params.id,request.user.id)
     return reply.code(204).send()
   })
 }
